@@ -1,0 +1,127 @@
+import numpy as np
+import tkinter as tk
+from tkinter import messagebox
+
+def right_rotate(x, n):
+    return (x >> n) | (x << (32 - n)) & 0xFFFFFFFF
+
+def sha256(message):
+    binary = "".join(format(ord(c), "08b") for c in message)
+    binary = binary + "1"
+
+    while (len(binary) + 64) % 512 != 0:
+        binary = binary + "0"
+    msg_len = format(len(message) * 8, "064b")
+    binary = binary + msg_len
+
+    A = 0x6a09e667
+    B = 0xbb67ae85
+    C = 0x3c6ef372
+    D = 0xa54ff53a
+    E = 0x510e527f
+    F = 0x9b05688c
+    G = 0x1f83d9ab
+    H = 0x5be0cd19
+
+    k = np.array([0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b,
+                  0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01,
+                  0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7,
+                  0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+                  0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152,
+                  0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+                  0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
+                  0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
+                  0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08,
+                  0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f,
+                  0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+                  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2])
+
+    for Block in range(0, len(binary), 512):
+        Round = binary[Block:Block + 512]
+        words = [int(Round[i:i + 32], 2) for i in range(0, 512, 32)]
+
+        for i in range(16, 64):
+            sigma0 = right_rotate(words[i - 15], 7) ^ right_rotate(words[i - 15], 18) ^ (words[i - 15] >> 3)
+            sigma1 = right_rotate(words[i - 2], 17) ^ right_rotate(words[i - 2], 19) ^ (words[i - 2] >> 10)
+            words.append((words[i - 16] + sigma0 + words[i - 7] + sigma1) & 0xFFFFFFFF)
+
+        a, b, c, d, e, f, g, h = A, B, C, D, E, F, G, H
+
+        for i in range(64):
+            Summation1 = right_rotate(e, 6) ^ right_rotate(e, 11) ^ right_rotate(e, 25)
+            choice = (e & f) ^ ((~e) & g)
+            temp1 = h + Summation1 + choice + k[i] + words[i]
+            Summation0 = right_rotate(a, 2) ^ right_rotate(a, 13) ^ right_rotate(a, 22)
+            majority = (a & b) ^ (a & c) ^ (b & c)
+            temp2 = Summation0 + majority
+
+            h = g
+            g = f
+            f = e
+            e = (d + temp1) & 0xFFFFFFFF
+            d = c
+            c = b
+            b = a
+            a = (temp1 + temp2) & 0xFFFFFFFF
+
+        # Update hash values for this chunk
+        A = (A + a) & 0xFFFFFFFF
+        B = (B + b) & 0xFFFFFFFF
+        C = (C + c) & 0xFFFFFFFF
+        D = (D + d) & 0xFFFFFFFF
+        E = (E + e) & 0xFFFFFFFF
+        F = (F + f) & 0xFFFFFFFF
+        G = (G + g) & 0xFFFFFFFF
+        H = (H + h) & 0xFFFFFFFF
+
+    # Concatenate the hash values and return the result
+    hash_result = f"{A:08x}{B:08x}{C:08x}{D:08x}{E:08x}{F:08x}{G:08x}{H:08x}"
+    return hash_result
+
+def calculate_hash():
+    user_message = entry.get()
+    hashed_result = sha256(user_message)
+    result_display.delete(1.0, tk.END)  # Clear previous content
+    result_display.insert(tk.END, hashed_result)
+
+# Create main window
+window = tk.Tk()
+window.title("SHA-256 Hash Calculator")
+
+# Add space above "Enter the message" label
+space_label = tk.Label(window, text="")
+space_label.pack()
+
+# Create entry for user input
+entry_label = tk.Label(window, text="Enter the message:")
+entry_label.pack()
+entry = tk.Entry(window, width=50)
+entry.pack(padx=10)  # Add space to the left and right of the entry widget
+
+# Add space
+space_label = tk.Label(window, text="")
+space_label.pack()
+
+# Create button to calculate hash
+calculate_button = tk.Button(window, text="Calculate Hash", command=calculate_hash)
+calculate_button.pack()
+
+# Add space
+space_label = tk.Label(window, text="")
+space_label.pack()
+
+# Create label for displaying hash result
+result_label = tk.Label(window, text="SHA-256 Hashed Result:")
+result_label.pack()
+
+# Create text box for displaying hash result
+result_display = tk.Text(window, height=5, width=74)
+result_display.pack(padx=30)  # Add space to the left and right of the text box
+
+# Add space
+space_label = tk.Label(window, text="")
+space_label.pack()
+
+# Start the main loop
+window.mainloop()
